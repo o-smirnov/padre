@@ -8,9 +8,9 @@ import padre
 import padre.file
 
 
-def _make_thumbnail (image,width):
+def _make_thumbnail(image, width):
     thumbdir = "%s/padre-thumbnails" % os.path.dirname(image)
-    thumb = os.path.join(thumbdir, "%d.%s" % (width,os.path.basename(image)))
+    thumb = os.path.join(thumbdir, "%d.%s" % (width, os.path.basename(image)))
     # does thumbdir need to be created?
     if not os.path.exists(thumbdir):
         if not os.access(os.path.dirname(thumbdir), os.W_OK):
@@ -19,14 +19,15 @@ def _make_thumbnail (image,width):
     # does thumb need to be updated?
     if not os.path.exists(thumb) or os.path.getmtime(thumb) < os.path.getmtime(image):
         # can't write? That's ok too
-        if not os.access(thumbdir,os.W_OK) or os.path.exists(thumb) and not os.access(thumb,os.W_OK):
+        if not os.access(thumbdir, os.W_OK) or os.path.exists(thumb) and not os.access(thumb, os.W_OK):
             return None
         if os.system("convert -thumbnail %d %s %s" % (width, image, thumb)):
-            raise RuntimeError,"thumbnail convert failed, maybe imagemagick is not installed?"
+            raise RuntimeError, "thumbnail convert failed, maybe imagemagick is not installed?"
     return thumb
 
 
 class ImageFile(padre.file.FileBase):
+
     @staticmethod
     def _show_thumbs(images, width=None, ncol=None, maxwidth=None, mincol=None,
                      external_thumbs=None,
@@ -40,13 +41,14 @@ class ImageFile(padre.file.FileBase):
         npix = int(padre.DPI * width)
 
         # make list of basename, thumbnail, filename  tuples
-        filelist = sorted([ (os.path.basename(img.path),img.path) for img in images ])
+        filelist = sorted(
+            [(os.path.basename(img.path), img.path) for img in images])
 
         # keep track of thumbnail fails
         nfail = 0
 
         html = padre.render_title(title) + \
-                   """<br>
+            """<br>
                    <table style="border: 0px; text-align: left">\n
                    """
         for row in range(nrow):
@@ -60,10 +62,11 @@ class ImageFile(padre.file.FileBase):
             for _, image in filelist_row:
                 if external_thumbs is False:
                     thumb = None
-                # make thumbnail and record exceptions. Print the first one, as they really shouldn't happen
+                # make thumbnail and record exceptions. Print the first one, as
+                # they really shouldn't happen
                 else:
                     try:
-                        thumb = _make_thumbnail(image,npix)
+                        thumb = _make_thumbnail(image, npix)
                         if not thumb and external_thumbs:
                             nfail += 1
                     except:
@@ -73,9 +76,11 @@ class ImageFile(padre.file.FileBase):
                         thumb = None
                 html += """<td style="border: 0px; text-align: left">"""
                 if thumb:
-                    html += "<a href=/files/%s><img src=/files/%s alt='?'></a>" % (image, thumb)
+                    html += "<a href=/files/%s><img src=/files/%s alt='?'></a>" % (
+                        image, thumb)
                 else:
-                    html += "<a href=/files/%s><img src=/files/%s width=%d alt='?'></a>" % (image, image, npix)
+                    html += "<a href=/files/%s><img src=/files/%s width=%d alt='?'></a>" % (
+                        image, image, npix)
                 html += "</td>\n"
             html += "</tr>\n"
         html += "</table>"

@@ -29,7 +29,7 @@ class FITSFile(padre.file.FileBase):
         print self.path, "x".join(sizes), ",".join(axes)
 
     @staticmethod
-    def _show_summary (fits_files,title=None,showpath=False):
+    def _show_summary(fits_files, title=None, showpath=False):
         if not fits_files:
             return None
         if title:
@@ -41,25 +41,28 @@ class FITSFile(padre.file.FileBase):
             try:
                 hdr = pyfits.open(ff.fullpath)[0].header
                 naxis = hdr.get("NAXIS")
-                size = "&times;".join([str(hdr.get("NAXIS%d"%i)) for i in range(1,naxis+1)])
-                axes = ",".join([hdr.get("CTYPE%d"%i,"?").split("-",1)[0] for i in range(1,naxis+1)])
-                delt = [ abs(hdr.get("CDELT%d"%i,0)) for i in 1,2 ]
+                size = "&times;".join(
+                    [str(hdr.get("NAXIS%d" % i)) for i in range(1, naxis + 1)])
+                axes = ",".join(
+                    [hdr.get("CTYPE%d" % i, "?").split("-", 1)[0] for i in range(1, naxis + 1)])
+                delt = [abs(hdr.get("CDELT%d" % i, 0)) for i in 1, 2]
                 resolution = []
                 if all(delt):
                     if delt[0] == delt[1]:
-                        delt = [ delt[0] ]
+                        delt = [delt[0]]
                     for d in delt:
                         if d >= 1:
-                            resolution.append("%.1f&deg;"%d)
-                        elif d >= 1/60.:
-                            resolution.append("%.1f'"%(d*60))
+                            resolution.append("%.1f&deg;" % d)
+                        elif d >= 1 / 60.:
+                            resolution.append("%.1f'" % (d * 60))
                         else:
-                            resolution.append("%.1g\""%(d*3600))
+                            resolution.append("%.1g\"" % (d * 3600))
                 resolution = "&times;&deg;".join(resolution)
             except:
                 traceback.print_exc()
-            data += [ (name, size, resolution, axes, ff.mtime_str) ]
-        display(HTML(padre.render_table(data, labels=("name", "size", "res", "axes", "modified"))))
+            data += [(name, size, resolution, axes, ff.mtime_str)]
+        display(HTML(padre.render_table(data, labels=("name", "size", "res",
+                                                      "axes", "modified"))))
 
     @staticmethod
     def _show_thumbs(fits_files,
@@ -133,13 +136,15 @@ class FITSFile(padre.file.FileBase):
             ylim = y0 - yz, y0 + yz
             status += " zoom x%s" % zoom
         else:
-            xlim = 0, dims[xyaxes[0]]-1
-            ylim = 0, dims[xyaxes[1]]-1
+            xlim = 0, dims[xyaxes[0]] - 1
+            ylim = 0, dims[xyaxes[1]] - 1
 
-        # the set of axes that we need to index into -- remove the XY axes first
+        # the set of axes that we need to index into -- remove the XY axes
+        # first
         remaining_axes = set(range(naxis)) - set(xyaxes)
 
-        # get axis labels. "1" to "N", unless a special axis like STOKES is used
+        # get axis labels. "1" to "N", unless a special axis like STOKES is
+        # used
         axis_labels = {}
         for ax in remaining_axes:
             labels = self.FITSAxisLabels.get(axis_type[ax], None)
@@ -195,7 +200,8 @@ class FITSFile(padre.file.FileBase):
             # show single image
             fig = make_figure and plt.figure(figsize=(width, width),
                                              dpi=padre.DPI)
-            plt.imshow(data[tuple(baseslice)].T, vmin=vmin, vmax=vmax, cmap=cmap)
+            plt.imshow(
+                data[tuple(baseslice)].T, vmin=vmin, vmax=vmax, cmap=cmap)
             if colorbar:
                 cbar = plt.colorbar()
                 cbar.ax.tick_params(labelsize=fs or fs_colorbar)

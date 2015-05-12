@@ -22,7 +22,7 @@ if [ "$SSH_CLIENT" != "" ]; then
   echo "          $ ssh -L $port:localhost$port user@machine"
   echo 
 else
-  opts = ""
+  opts=""
 fi
 
 ipython notebook --notebook-dir=. --port=$[$UID+9000] $opts
