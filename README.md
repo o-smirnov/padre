@@ -4,6 +4,10 @@ Python Astronomy Data & Results Examiner
 
 Functions and helpers for displaying FITS images etc. in an ipython notebook.
 
+[![Build Status](https://travis-ci.org/radio-astro/radiopadre.svg?branch=v0.1.2)](https://travis-ci.org/radio-astro/radiopadre)
+
+[radiopadre on pypi](https://pypi.python.org/pypi/radiopadre)
+
 
 Usage
 -----
@@ -11,7 +15,7 @@ Usage
 ```
 $ apt-get install imagemagick
 $ pip install -r requirements.txt
-$ export PYTHONPATH=PYTHONPATH:/home/USER/padre  # or wherever you've cloned the repo
+$ export PYTHONPATH=PYTHONPATH:/home/USER/radioradiopadre  # or wherever you've cloned the repo
 $ ipython notebook
 ```
 
@@ -26,5 +30,5 @@ Copy example.ipynb or view-everything.ipynb into your data directory, and start 
 Using with docker
 -----------------
 
-If you can't do the pip install above for whatever reason, you can use padre with the radioastro/notebook docker container. Use the ```run-padre-docker.sh``` script to run it with docker.
+If you can't do the pip install above for whatever reason, you can use radioradiopadre with the radioastro/notebook docker container. Use the ```run-radioradiopadre-docker.sh``` script to run it with docker.
 
