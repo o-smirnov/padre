@@ -15,7 +15,7 @@ Usage
 ```
 $ apt-get install imagemagick
 $ pip install -r requirements.txt
-$ ./run-padtre.sh
+$ ./run-radiopadre.sh
 ```
 
 Browse to http://localhost:8888, or whatever port your ipython notebooksays it binds to. Go into the 
