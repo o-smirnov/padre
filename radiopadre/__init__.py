@@ -197,7 +197,7 @@ class DirList(list):
         Creates a DirList object corresponding to rootfolder and all its
         subdirectories.
 
-        args:
+        Args:
             include: list of filename patterns to include
             exclude: list of filename patterns to exclude. Trailing slash
                 matches directory names.
@@ -212,10 +212,8 @@ class DirList(list):
                 original_rootfolder or rootfolder by default
             _scan: (for internal use only) if False, directory is not re-scanned
         """
-        self._root = rootfolder = rootfolder or os.environ.get(
-            'PADRE_DATA_DIR') or os.path.realpath('.')
-        self._original_root = original_rootfolder or os.environ.get(
-            'PADRE_HOST_DATA_DIR') or rootfolder
+        self._root = rootfolder = rootfolder or os.environ.get('PADRE_DATA_DIR') or '.'
+        self._original_root = original_rootfolder or os.environ.get('PADRE_HOST_DATA_DIR') or rootfolder
         self._title = title or self._original_root
 
         # setup patterns
