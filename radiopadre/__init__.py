@@ -39,6 +39,10 @@ astropy.log.setLevel('ERROR')
 
 
 class FileList(list):
+    @staticmethod
+    def list_to_string (filelist):
+        return "Contents of %s:\n"%filelist._title + "\n".join(
+                    ["%d: %s" % (i, d.path) or '.' for i, d in enumerate(filelist)])
 
     def __init__(self, files=[], extcol=True, showpath=False,
                  classobj=None, title="",
@@ -82,15 +86,18 @@ class FileList(list):
     def list(self, ncol=None, **kw):
         return IPython.display.display(HTML(self._repr_html_(ncol=ncol, **kw)))
 
+    def __str__ (self):
+        return FileList.list_to_string(self)
+
     def summary(self, **kw):
         kw.setdefault('title', self._title)
         kw.setdefault('showpath', self._showpath)
         summary = getattr(self._classobj, "_show_summary", None)
         return summary(self, **kw) if summary else self.list(**kw)
 
-    def show_all(self):
+    def show_all(self,*args,**kw):
         for f in self:
-            f.show()
+            f.show(*args,**kw)
 
     def __call__(self, pattern):
         files = []
@@ -296,6 +303,9 @@ class DirList(list):
         html += render_table(dirlist, labels=("name", "# FITS", "# img",
                                               "# others", "modified"))
         return html
+
+    def __str__ (self):
+        return FileList.list_to_string(self)
 
     def show(self):
         return IPython.display.display(self)
