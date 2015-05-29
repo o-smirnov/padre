@@ -201,7 +201,8 @@ class FITSFile(radiopadre.file.FileBase):
             # show single image
             fig = make_figure and plt.figure(figsize=(width, width),
                                              dpi=radiopadre.DPI)
-            plt.suptitle(self.basename)
+            if fig:
+                plt.suptitle(self.basename)
             plt.imshow(
                 data[tuple(baseslice)].T, vmin=vmin, vmax=vmax, cmap=cmap)
             if colorbar:
