@@ -62,8 +62,9 @@ class FITSFile(radiopadre.file.FileBase):
             except:
                 traceback.print_exc()
             data += [(name, size, resolution, axes, ff.mtime_str)]
-        display(HTML(render_table(data, labels=("name", "size", "res",
-                                                      "axes", "modified"))))
+        display(HTML(render_table(data,
+                        html=("size", "axes", "res"), 
+                        labels=("name", "size", "res", "axes", "modified"))))
 
     @staticmethod
     def _show_thumbs(fits_files,
