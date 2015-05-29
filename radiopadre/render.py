@@ -1,5 +1,19 @@
 import math
 import cgi
+import os.path
+
+import IPython.display 
+
+# crude hack to set _notebook_dir to the notebook directory
+_notebook_dir = ''
+IPython.display.display(IPython.display.Javascript(
+  'IPython.notebook.kernel.execute("import radiopadre.render,os.path; radiopadre.render._notebook_dir=os.path.dirname(" + "\'"+IPython.notebook.notebook_path+"\')");'))
+
+def render_url (fullpath):
+    """Converts a path relative to the notebook (i.e. kernel) to a URL that 
+    can be served by the notebook server, by prepending the notebook
+    directory""";
+    return os.path.join("/files",_notebook_dir,fullpath);
 
 def render_title(title):
     return "<b>%s</b>" % cgi.escape(title)
@@ -33,7 +47,7 @@ def render_table(data, labels, html=set(), ncol=1, links=None):
                     txt += "border-right: 1px double; padding-right: 10px"
                 link = links and links[idatum][i]
                 if link:
-                    txt += """"><A HREF=/files/%s>%s</A></td>""" % (link, col)
+                    txt += """"><A HREF=%s>%s</A></td>""" % (link, col)
                 else:
                     txt += """">%s</td>""" % col
         txt += """</tr>\n"""

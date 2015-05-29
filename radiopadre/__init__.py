@@ -11,7 +11,7 @@ from IPython.display import HTML, display
 from radiopadre.fitsfile import FITSFile
 from radiopadre.imagefile import ImageFile
 from radiopadre.file import data_file, FileBase
-from radiopadre.render import render_title, render_table
+from radiopadre.render import render_title, render_table, render_url
 
 
 __version__ = '0.2.2'
@@ -71,12 +71,12 @@ class FileList(list):
             data = [((df.basepath if self._showpath else df.basename), df.ext,
                      df.size_str, df.mtime_str) for df in
                     self]
-            links = [(df.fullpath, df.fullpath, None, None) for df in self]
+            links = [(render_url(df.fullpath), render_url(df.fullpath), None, None) for df in self]
         else:
             labels = "name", "size", "modified"
             data = [((df.basepath if self._showpath else df.basename),
                      df.size_str, df.mtime_str) for df in self]
-            links = [(df.fullpath, None, None) for df in self]
+            links = [(render_url(df.fullpath), None, None) for df in self]
         html += render_table(data, labels, links=links, ncol=ncol)
         return html
 
@@ -292,6 +292,8 @@ class DirList(list):
 
     def _repr_html_(self):
         html = render_title(self._title)
+        if not self:
+            return html + ": no content"
         dirlist = []
         for dir_ in self:
             nfits = len(dir_.fits)
