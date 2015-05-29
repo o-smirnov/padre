@@ -2,7 +2,7 @@ import os
 import traceback
 
 import IPython.display
-from IPython.display import HTML, display
+from IPython.display import HTML, Image, display
 
 import radiopadre
 import radiopadre.file
@@ -56,7 +56,7 @@ class ImageFile(radiopadre.file.FileBase):
             filelist_row = filelist[row * ncol:(row + 1) * ncol]
             for name, image in filelist_row:
                 html += """<td style="border: 0px; text-align: center">"""
-                html += name
+                html += "<a href=/files/%s>%s</a>" % (image, name)
                 html += "</td>\n"
             html += """</tr><tr style="border: 0px; text-align: left">\n"""
             for _, image in filelist_row:
@@ -90,6 +90,5 @@ class ImageFile(radiopadre.file.FileBase):
 
         display(HTML(html))
 
-    def show(self, width=None):
-        IPython.display.display(IPython.display.Image(self.fullpath,
-                                                      width=width * 100))
+    def show(self, width=None, **kw):
+        display(Image(self.fullpath, width=width and width * 100))
