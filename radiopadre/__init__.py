@@ -308,7 +308,7 @@ class DirList(list):
         return self
 
     def _repr_html_(self):
-        html = render_title(self._title)
+        html = render_title(self._title) + render_refresh_button()
         if not self:
             return html + ": no subdirectories"
         dirlist = []
