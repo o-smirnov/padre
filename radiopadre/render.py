@@ -72,6 +72,8 @@ def render_refresh_button ():
     #         }
     #     """ % (bid,bid)
     txt += """</script>
-        <BUTTON %s onclick="refresh();" style="position: absolute; right: 0; top: 0;">&#8635;</BUTTON>""" 
-        
+        <BUTTON %s onclick="refresh();" 
+        title="Click to re-execute cell and refresh contents"
+        style="position: absolute; right: 0; top: 0;">&#8635;</BUTTON>""" 
+
     return txt
