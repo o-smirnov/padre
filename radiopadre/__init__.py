@@ -11,7 +11,7 @@ from IPython.display import HTML, display
 from radiopadre.fitsfile import FITSFile
 from radiopadre.imagefile import ImageFile
 from radiopadre.file import data_file, FileBase
-from radiopadre.render import render_title, render_table, render_url
+from radiopadre.render import render_title, render_table, render_url, render_refresh_button
 
 
 __version__ = '0.2.2'
@@ -61,7 +61,7 @@ class FileList(list):
     def _repr_html_(self, ncol=None, **kw):
         html = render_title(self._title)
         if not self:
-            return html + ": no content"
+            return html + ": 0 files"
         # auto-set 1 or 2 columns based on filename length
         if ncol is None:
             max_ = max([len(df.basename) for df in self])
@@ -95,7 +95,13 @@ class FileList(list):
         summary = getattr(self._classobj, "_show_summary", None)
         return summary(self, **kw) if summary else self.list(**kw)
 
+    def watch(self,*args,**kw):
+        display(HTML(render_refresh_button()))
+        self.show_all(*args,**kw)
+
     def show_all(self,*args,**kw):
+        if not self:
+            display(HTML("<p>0 files</p>"))
         for f in self:
             f.show(*args,**kw)
 
@@ -111,10 +117,15 @@ class FileList(list):
                         title=os.path.join(self._title, pattern))
 
     def thumbs(self, **kw):
-        kw.setdefault('title', self._title)
+        if not self:
+            display(HTML("<p>0 files</p>"))
+            return None
+        kw.setdefault('title', self._title + " (%d file%s)" % (len(self), "s" if len(self) > 1 else ""))
         kw.setdefault('showpath', self._showpath)
         thumbs = getattr(self._classobj, "_show_thumbs", None)
-        return thumbs(self, **kw) if thumbs else None
+        if thumbs:
+            return thumbs(self, **kw) 
+        display(HTML("<p>%d files. Don't know how to make thumbnails for this collection.</p>" % len(self)))
 
     def __getslice__(self, *slc):
         return FileList(list.__getslice__(self, *slc),
@@ -293,7 +304,7 @@ class DirList(list):
     def _repr_html_(self):
         html = render_title(self._title)
         if not self:
-            return html + ": no content"
+            return html + ": no subdirectories"
         dirlist = []
         for dir_ in self:
             nfits = len(dir_.fits)

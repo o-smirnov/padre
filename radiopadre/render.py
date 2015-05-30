@@ -53,3 +53,25 @@ def render_table(data, labels, html=set(), ncol=1, links=None):
         txt += """</tr>\n"""
     txt += "</table>"
     return txt
+
+def render_refresh_button ():
+    # bid = button_id and "'%s'"%button_id
+    # attrs = ( "id=%s onload='init(%s);' " % (bid, bid) )  if bid else ""
+    txt = """<script type="text/Javascript">
+            function refresh()  {  
+                IPython.notebook.execute_cell(); 
+            }
+          """
+    # if bid:
+    #     txt += """
+    #         function init() {
+    #           document.getElementById(%s).nbcell = IPython.notebook.get_selected_cell();
+    #         }
+    #         function refresh1() {
+    #           document.getElementById(%s).nbcell.execute();
+    #         }
+    #     """ % (bid,bid)
+    txt += """</script>
+        <BUTTON %s onclick="refresh();" style="position: absolute; right: 0; top: 0;">&#8635;</BUTTON>""" 
+        
+    return txt

@@ -2,7 +2,10 @@ import os
 import time
 import math
 
+from IPython.display import display, HTML
+
 import radiopadre
+from radiopadre.render import render_refresh_button
 
 
 class FileBase(object):
@@ -90,8 +93,12 @@ class FileBase(object):
     def _repr_html_(self):
         return self.show() or self.path
 
-    def show(self, **kw):
+    def show(self, *args, **kw):
         print self.path
+
+    def watch(self, *args, **kw):
+        display(HTML(render_refresh_button()))
+        return self.show(*args, **kw)
 
 
 def data_file(path, root=""):
