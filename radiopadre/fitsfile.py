@@ -32,7 +32,8 @@ class FITSFile(radiopadre.file.FileBase):
     @staticmethod
     def _show_summary(fits_files, title=None, showpath=False):
         if not fits_files:
-            return None
+            display(HTML("0 files"))
+            return
         if title:
             display(HTML(render_title(title)))
         data = []

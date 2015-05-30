@@ -59,7 +59,7 @@ class FileList(list):
         return FileBase.sort_list(self, opt)
 
     def _repr_html_(self, ncol=None, **kw):
-        html = render_title(self._title)
+        html = render_title(self._title) + render_refresh_button();
         if not self:
             return html + ": 0 files"
         # auto-set 1 or 2 columns based on filename length
@@ -93,13 +93,18 @@ class FileList(list):
         kw.setdefault('title', self._title)
         kw.setdefault('showpath', self._showpath)
         summary = getattr(self._classobj, "_show_summary", None)
-        return summary(self, **kw) if summary else self.list(**kw)
+        if summary:
+            display(HTML(render_refresh_button()))
+            return summary(self, **kw)  
+        else:
+            return self.list(**kw)
 
-    def watch(self,*args,**kw):
-        display(HTML(render_refresh_button()))
-        self.show_all(*args,**kw)
+    # def watch(self,*args,**kw):
+    #     display(HTML(render_refresh_button()))
+    #     self.show_all(*args,**kw)
 
     def show_all(self,*args,**kw):
+        display(HTML(render_refresh_button()))
         if not self:
             display(HTML("<p>0 files</p>"))
         for f in self:
@@ -117,6 +122,7 @@ class FileList(list):
                         title=os.path.join(self._title, pattern))
 
     def thumbs(self, **kw):
+        display(HTML(render_refresh_button()))
         if not self:
             display(HTML("<p>0 files</p>"))
             return None
