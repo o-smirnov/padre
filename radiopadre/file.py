@@ -82,10 +82,16 @@ class FileBase(object):
     _sort_attributes = dict(x="ext", n="basepath", s="size", t="mtime")
 
     def update_mtime (self):
+        """Updates mtime and mtime_str attributes according to current file mtime,
+        returns mtime_str"""
         self.mtime = os.path.getmtime(self.fullpath)
         self.mtime_str = time.strftime(radiopadre.TIMEFORMAT,
                                        time.localtime(self.mtime))
         return self.mtime_str
+
+    def is_updated (self):
+        """Returns True if mtime of underlying file has changed"""
+        return os.path.getmtime(self.fullpath) > self.mtime
 
     def __str__(self):
         return self.path

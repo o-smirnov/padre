@@ -54,14 +54,38 @@ def render_table(data, labels, html=set(), ncol=1, links=None):
     txt += "</table>"
     return txt
 
-def render_refresh_button ():
+def render_refresh_button (full=False):
+    """Renders a "refresh" button which re-executes the current sell.
+    If full is True, a double-click will re-execute the entire notebook, and the button
+    will visually indicate that this is necessary
+    """
     # bid = button_id and "'%s'"%button_id
     # attrs = ( "id=%s onload='init(%s);' " % (bid, bid) )  if bid else ""
     txt = """<script type="text/Javascript">
             function refresh()  {  
                 IPython.notebook.execute_cell(); 
             }
-          """
+            function refresh_all()  { 
+                var current =  IPython.notebook.get_selected_index();
+                IPython.notebook.execute_cell_range(0,current+1);
+            }
+          </script>
+          <button %s onclick="refresh();"
+            style="position: absolute; right: 0; top: 0;
+    """
+    if full:
+        title = "The underlying directories have changed so it is probably wise to " +\
+            "rerun the notebook. Double-click to rerun the notebook up to and including " +\
+            "this cell, or click to rerun this cell only"
+        txt += """color:red;"
+            title="%s" ondblclick="refresh_all();"
+            >&#8635;</button>
+        """ % title
+    else:
+        txt += """"
+            title="Click to rerun this cell and refresh its contents."
+            >&#8635;</button>
+        """
     # if bid:
     #     txt += """
     #         function init() {
@@ -71,9 +95,4 @@ def render_refresh_button ():
     #           document.getElementById(%s).nbcell.execute();
     #         }
     #     """ % (bid,bid)
-    txt += """</script>
-        <BUTTON %s onclick="refresh();" 
-        title="Click to re-execute cell and refresh contents"
-        style="position: absolute; right: 0; top: 0;">&#8635;</BUTTON>""" 
-
     return txt

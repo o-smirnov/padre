@@ -45,13 +45,14 @@ class FileList(list):
                     ["%d: %s" % (i, d.path) or '.' for i, d in enumerate(filelist)])
 
     def __init__(self, files=[], extcol=True, showpath=False,
-                 classobj=None, title="",
+                 classobj=None, title="", parent=None,
                  sort="xnt"):
         list.__init__(self, files)
         self._extcol = extcol
         self._showpath = showpath
         self._classobj = classobj
         self._title = title
+        self._parent = parent
         if sort:
             self.sort(sort)
 
@@ -59,7 +60,8 @@ class FileList(list):
         return FileBase.sort_list(self, opt)
 
     def _repr_html_(self, ncol=None, **kw):
-        html = render_title(self._title) + render_refresh_button();
+        html = render_title(self._title) + \
+                    render_refresh_button(full=self._parent and self._parent.is_updated());
         if not self:
             return html + ": 0 files"
         # auto-set 1 or 2 columns based on filename length
@@ -94,7 +96,7 @@ class FileList(list):
         kw.setdefault('showpath', self._showpath)
         summary = getattr(self._classobj, "_show_summary", None)
         if summary:
-            display(HTML(render_refresh_button()))
+            display(HTML(render_refresh_button(full=self._parent and self._parent.is_updated())))
             return summary(self, **kw)  
         else:
             return self.list(**kw)
@@ -104,7 +106,7 @@ class FileList(list):
     #     self.show_all(*args,**kw)
 
     def show_all(self,*args,**kw):
-        display(HTML(render_refresh_button()))
+        display(HTML(render_refresh_button(full=self._parent and self._parent.is_updated())))
         if not self:
             display(HTML("<p>0 files</p>"))
         for f in self:
@@ -119,10 +121,10 @@ class FileList(list):
         return FileList(files,
                         extcol=self._extcol, showpath=self._showpath,
                         classobj=self._classobj,
-                        title=os.path.join(self._title, pattern))
+                        title=os.path.join(self._title, pattern), parent=self._parent)
 
     def thumbs(self, **kw):
-        display(HTML(render_refresh_button()))
+        display(HTML(render_refresh_button(full=self._parent and self._parent.is_updated())))
         if not self:
             display(HTML("<p>0 files</p>"))
             return None
@@ -137,7 +139,7 @@ class FileList(list):
         return FileList(list.__getslice__(self, *slc),
                         extcol=self._extcol, showpath=self._showpath,
                         classobj=self._classobj,
-                        title="%s[%s]" % (self._title, ":".join(map(str, slc))))
+                        title="%s[%s]" % (self._title, ":".join(map(str, slc))), parent=self._parent)
 
 
 class DataDir(FileBase):
@@ -145,9 +147,11 @@ class DataDir(FileBase):
     This class represents a directory in the data folder
     """
 
-    def __init__(self, name, files=[], root=".", original_root=None):
+    def __init__(self, name, files=None, root=".", original_root=None):
         FileBase.__init__(self, name, root=root)
         # list of files
+        if files is None:
+            files = os.listdir(self.fullpath)
         files = [f for f in files if not f.startswith('.')]
         # our title, in HTML
         self._original_root = root
@@ -156,19 +160,19 @@ class DataDir(FileBase):
         # make list of data filesD and sort by time
         self.files = FileList([data_file(os.path.join(self.fullpath, f),
                                          root=root) for f in files],
-                              title=self._title)
+                              title=self._title, parent=self)
 
         # make separate lists of fits files and image files
         self.fits = FileList([f for f in self.files if type(f) is FITSFile],
                              classobj=FITSFile,
-                             title="FITS files, " + self._title)
+                             title="FITS files, " + self._title, parent=self)
         self.images = FileList([f for f in self.files if type(f) is ImageFile],
                                classobj=ImageFile,
-                               title="Images, " + self._title)
+                               title="Images, " + self._title, parent=self)
         self.others = FileList([f for f in self.files
                                 if type(f) is not ImageFile and type(
                                     f) is not FITSFile],
-                               title="Other files, " + self._title)
+                               title="Other files, " + self._title, parent=self)
 
     def sort(self, opt):
         for f in self.files, self.fits, self.images:
@@ -184,6 +188,15 @@ class DataDir(FileBase):
     def _repr_html_(self):
         return self.files._repr_html_()
 
+    def __call__(self, pattern):
+        return self.files(pattern)
+
+    def __getslice__(self, *slc):
+        return self.files.__getslice__(*slc)
+
+    def __getitem__(self, item):
+        return self.files[item]
+
     def ls (self):
         return DirList(self.path, recursive=False, 
                 original_rootfolder=os.path.join(self._original_root, self.path))
@@ -191,6 +204,8 @@ class DataDir(FileBase):
     def lsr (self):
         return DirList(self.path, recursive=True,  
                 original_rootfolder=os.path.join(self._original_root, self.path))
+
+
 
 
 def lsd (pattern=None,*args,**kw):
@@ -295,20 +310,24 @@ class DirList(list):
         self._sort_option = opt
         FileBase.sort_list(self, opt)
         # set up aggregated file lists
-        self.files = FileList(title=self._title, showpath=True)
+        self.files = FileList(title=self._title, showpath=True, parent=self)
         self.fits = FileList(classobj=FITSFile,
-                             title="FITS files, " + self._title, showpath=True)
+                             title="FITS files, " + self._title, showpath=True, parent=self)
         self.images = FileList(classobj=ImageFile,
-                               title="Images, " + self._title, showpath=True)
+                               title="Images, " + self._title, showpath=True, parent=self)
         self.others = FileList(title="Other files, " + self._title,
-                               showpath=True)
+                               showpath=True, parent=self)
         for d in self:
             for attr in 'files', 'fits', 'images', 'others':
                 getattr(self, attr).extend(getattr(d, attr))
         return self
 
+    def is_updated (self):
+        return any([d.is_updated() for d in self])
+
     def _repr_html_(self):
-        html = render_title(self._title) + render_refresh_button()
+        html = render_title(self._title) + \
+               render_refresh_button(full=self.is_updated())
         if not self:
             return html + ": no subdirectories"
         dirlist = []
