@@ -3,7 +3,9 @@
 # get current directory
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-opts=""
+port=${RADIOPADRE_PORT:-$[$UID+9000]}
+opts="--notebook-dir=. --port=$[$UID+9000]"
+
 force_browser=""
 
 while [ "$1" != "" ]; do
@@ -23,8 +25,6 @@ done
 # add the directory where run-radiopadre.sh resides to PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$DIR
 
-port=${RADIOPADRE_PORT:-$[$UID+9000]}
-
 echo "Welcome to radiopadre!"
 echo
 echo "I have chosen to use port $port for you. You may set RADIOPADRE_PORT if you prefer"
@@ -33,7 +33,7 @@ echo "ipython will pick an unused port instead. Check the output below to see if
 echo "the case."
 
 if [ "$SSH_CLIENT" != "" -a "$force_browser" == "" ]; then
-  opts="--no-browser $opts"
+  opts="$opts --no-browser"
   echo
   echo "Since you're logged in via ssh, so I'm not opening a web browser for you. Please"
   echo "manually browse to localhost:$port. You will probably want to employ ssh port"
@@ -48,4 +48,13 @@ else
 fi
 
 echo
-ipython notebook --notebook-dir=. --port=$[$UID+9000] $opts
+opts="$opts --ContentsManager.pre_save_hook=radiopadre.notebook_utils._notebook_save_hook"
+
+echo "Running ipython notebook $opts"
+ipython notebook $opts &
+pid=$!
+
+# kill the server if remote connection closes
+trap "kill -INT $pid" SIGINT SIGTERM SIGHUP
+
+wait $pid

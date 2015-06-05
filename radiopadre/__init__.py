@@ -6,13 +6,14 @@ import astropy
 
 import IPython.display
 import IPython.display
-from IPython.display import HTML, display
-
+from IPython.display import HTML, display, display_javascript, display_html
 from radiopadre.fitsfile import FITSFile
 from radiopadre.imagefile import ImageFile
 from radiopadre.file import data_file, FileBase
-from radiopadre.render import render_title, render_table, render_url, render_refresh_button
+from radiopadre.render import *
 
+import radiopadre.notebook_utils
+from radiopadre.notebook_utils import _notebook_save_hook
 
 __version__ = '0.2.2'
 
@@ -35,8 +36,88 @@ TWOCOLUMN_LIST_WIDTH = 20  # if all filenames in a list are <= this in length,
 
 TIMEFORMAT = "%H:%M:%S %b %d"
 
+## various notebook-related init
 astropy.log.setLevel('ERROR')
+try:
+    get_ipython
+except:
+    get_ipython = None
 
+# notebook metadata set via Javascript hack
+metadata = {}
+
+if get_ipython:
+    get_ipython().magic("matplotlib inline")
+    display(Javascript("""
+        var kernel = IPython.notebook.kernel;
+        kernel.execute("import radiopadre; radiopadre.metadata = " + JSON.stringify(IPython.notebook.metadata));
+        """))
+
+
+def scrub(scrub=True):
+    scrub = int(scrub)
+    metadata['radiopadre_notebook_scrub'] = scrub
+    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_scrub = %d;""" % scrub, raw=True)
+    if scrub:
+        display(HTML(render_status_message("All cell output will be scrubbed when this notebook is saved.")))
+    else:
+        display(HTML(render_status_message("Retaining cell output when saving the notebook.")))
+
+def protect (author=None):
+    """Makes current notebook protected with the given author name. Protected notebooks won't be saved
+    unless the user matches the author."""
+    metadata['radiopadre_notebook_author'] = author = author or os.environ['USER']    
+    metadata['radiopadre_notebook_protect'] = 1
+    # get_ipython and get_ipython().magic("autosave 0")
+    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 1;
+                IPython.notebook.metadata.radiopadre_notebook_scrub = 1;
+                IPython.notebook.metadata.radiopadre_notebook_author = "%s";""" % author, 
+                raw=True)
+    display(HTML(render_status_message("""This notebook is now protected, author is "%s".
+        All other users will have to treat this notebook as read-only.""" % author)))
+    #     display(HTML("""<b>This is a protected notebook (author '%s', and it ain't you!). 
+    #         You can edit and re-run cells, but you cannot save any changes. If you do want
+    #         to make changes, save this notebook to a different file, and remove the
+    #         <tt>radiopadre.protected()</tt> statement above.</b>""" % author))
+    # # else:
+    #     display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 1;
+    #             IPython.notebook.metadata.radiopadre_notebook_author = 1;
+    #             IPython.notebook.metadata.radiopadre_notebook_scrub = 1;""", 
+    #             raw=True)
+    #     display(HTML("""<b>Welcome to your protected notebook, '%s'. Please edit wisely.</b>""" % author))
+
+def unprotect ():
+    """Makes current notebook unprotected."""
+    # get_ipython and get_ipython().magic("autosave 0")
+    metadata['radiopadre_notebook_protect'] = 0
+    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 0;""",raw=True)
+    display(HTML(render_status_message("""This notebook is now unprotected.
+        All users can treat it as read-write.""")))
+
+def status ():
+    """Renders status message based on metadata"""
+    txt = """<div style="position: absolute; right: 100px; top: 0;">\n"""
+    author = metadata.get('radiopadre_notebook_author'); 
+    if metadata.get('radiopadre_notebook_protect'):
+        display(Javascript("IPython.notebook.set_autosave_interval(0);"))
+        txt += "<button onclick='IPython.notebook.copy_notebook();' title=\""
+        if author == os.environ["USER"]:
+            txt += "This is a protected notebook, but you are the author. " 
+            txt += "You may modify and save the notebook, but auto-save is disabled. Click button to save a copy of the notebook. " 
+            txt += "Use radiopadre.unprotect() to unprotect this notebook.\"><b>A</b></button>"
+        else:
+            txt += "This notebook is protected by author '%s'. " % author
+            txt += "You may modify, but you cannot save the notebook. Click button to save a copy of the botebook instead. " 
+            txt += "Use radiopadre.unprotect() to unprotect this notebook.\"><b>P</b></button>"
+    if metadata.get('radiopadre_notebook_scrub'):
+        txt += "<button onclick='IPython.notebook.clear_all_output();' title=\""
+        txt += "This notebook is marked as 'scrubbed', so cell output will not be saved. "
+        txt += "Click button to scrub all output now. " 
+        txt += "Use radiopadre.scrub(False) to disable scrubbing.\"><b>S</b></button>"
+    txt += "<button onclick='IPython.notebook.execute_all_cells();' title='Click to rerun entire notebook.'>"
+    txt += "<b style='color: green;'>&#8635</b></button>"
+    txt += "</div>"
+    display(HTML(txt))
 
 class FileList(list):
     @staticmethod

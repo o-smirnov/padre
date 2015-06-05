@@ -3,11 +3,14 @@ import cgi
 import os.path
 
 import IPython.display 
+from IPython.display import display, HTML, Javascript
 
 # crude hack to set _notebook_dir to the notebook directory
 _notebook_dir = ''
-IPython.display.display(IPython.display.Javascript(
-  'IPython.notebook.kernel.execute("import radiopadre.render,os.path; radiopadre.render._notebook_dir=os.path.dirname(" + "\'"+IPython.notebook.notebook_path+"\')");'))
+display(Javascript("""
+    var kernel = IPython.notebook.kernel;
+    kernel.execute("import radiopadre.render,os.path; radiopadre.render._notebook_dir=os.path.dirname(" + "\'"+IPython.notebook.notebook_path+"\')");
+"""))
 
 def render_url (fullpath):
     """Converts a path relative to the notebook (i.e. kernel) to a URL that 
@@ -18,6 +21,8 @@ def render_url (fullpath):
 def render_title(title):
     return "<b>%s</b>" % cgi.escape(title)
 
+def render_status_message(msg):
+    return "<p style='background: lightblue;'><b>%s</b></p>" % cgi.escape(msg)
 
 def render_table(data, labels, html=set(), ncol=1, links=None):
     txt = """<table style="border: 1px; text-align: left">
@@ -53,6 +58,7 @@ def render_table(data, labels, html=set(), ncol=1, links=None):
         txt += """</tr>\n"""
     txt += "</table>"
     return txt
+
 
 def render_refresh_button (full=False):
     """Renders a "refresh" button which re-executes the current sell.
