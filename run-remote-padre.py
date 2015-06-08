@@ -21,48 +21,51 @@ def find_unused_port (base,maxtries=1000):
             continue
     return None
 
-default_port = os.environ.get("PADRE_REMOTE_PORT",5000+os.getuid()*10)
 default_browser = os.environ.get("PADRE_BROWSER","xdg-open")
 
 from optparse import OptionParser,OptionGroup
-parser = OptionParser(usage="""%prog: [options] [user@]host[:radiopadre-path] directory [notebook.ipynb]""",
+parser = OptionParser(usage="""%prog: [options] [user@]host[:directory[/notebook.ipynb]]""",
     description="Uses ssh to connect to remote host, runs radiopadre notebook server "+
     "in the specified directory, loads the specified notebook, if any."
 )
 
 # parser.add_option("--port-query",type=int,metavar="N",
 #                   help="looks for N unused ports and reports them. For internal use.");
-parser.add_option("-p","--port",type="int",default=default_port,
-                  help="which base port to use. Default is %default, or set PADRE_REMOTE_PORT.")
+parser.add_option("-p","--remote-path",type="str",
+                  help="directory in which remote run-radiopadre.sh resides. Default is to rely on remote PATH being set correctly.")
 parser.add_option("-b","--browser",type="string",default=default_browser,
                   help="browser command to run. Default is %default, or set PADRE_BROWSER.")
 parser.add_option("-n","--no-browser",action="store_true",
-                  help="do not open a browser.")
+                  help="do not open a browser for the notebooks.")
 
 (options,args) = parser.parse_args()
 
 # parse arguments
-if len(args) == 2:
-    host, directory = args
-    notebook = None
-elif len(args) == 3:
-    host, directory, notebook = args
-else:
+if len(args) != 1:
     parser.error("incorrect number of arguments")
 
+# parse path to notebook, if notebook even specified
+host = args[0]
+notebook = path = None
 if ':' in host:
-    host, padrepath = host.split(":",1)
-    padrepath = os.path.join(padrepath,"run-radiopadre.sh")
+    host, path = host.split(":",1)
+    if path.endswith(".ipynb"):
+        notebook = os.path.basename(path)
+        path = os.path.dirname(path) 
+
+if options.remote_path:
+    padre_exec = os.path.join(options.remote_path,"run-radiopadre.sh")
 else:
-    padrepath = "run-radiopadre.sh"
+    padre_exec = "run-radiopadre.sh"
 
 print "Running remote radiopadre notebook on %s"%host
 
 # start ssh subprocess to launch notebook
-args = [ "ssh","-tt" ]
-# for port in range(options.port,options.port+10):
-#     args += [ "-L", "%d:localhost:%d" % (port, port) ]
-args += [ host, "cd %s && %s" % (directory, padrepath) ]
+args = [ "ssh","-tt",host ]
+if path:
+    args += [ "cd %s && %s" % (path, padre_exec) ]
+else:
+    args += [ padre_exec ]
 
 ssh = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
