@@ -6,7 +6,7 @@ from IPython.display import HTML, Image, display
 
 import radiopadre
 import radiopadre.file
-from radiopadre.render import render_url
+from radiopadre.render import render_title, render_url, render_preamble
 
 def _make_thumbnail(image, width):
     thumbdir = "%s/radiopadre-thumbnails" % os.path.dirname(image)
@@ -47,7 +47,7 @@ class ImageFile(radiopadre.file.FileBase):
         # keep track of thumbnail fails
         nfail = 0
 
-        html = radiopadre.render_title(title) + \
+        html = render_preamble() + render_title(title) + \
             """<br>
                    <table style="border: 0px; text-align: left">\n
                    """
@@ -56,7 +56,7 @@ class ImageFile(radiopadre.file.FileBase):
             filelist_row = filelist[row * ncol:(row + 1) * ncol]
             for name, image in filelist_row:
                 html += """<td style="border: 0px; text-align: center">"""
-                html += "<a href=/files/%s target='_blank'>%s</a>" % (image, name)
+                html += "<a href=%s target='_blank'>%s</a>" % (render_url(image), name)
                 html += "</td>\n"
             html += """</tr><tr style="border: 0px; text-align: left">\n"""
             for _, image in filelist_row:

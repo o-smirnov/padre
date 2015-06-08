@@ -118,6 +118,14 @@ def _init_js_side ():
         document.getElementById("radiopadre_controls").update = update_radiopadre_controls;
         document.getElementById("btn_exec_all").innerHTML = "Run all";
         update_radiopadre_controls();
+        var nbpath = IPython.notebook.notebook_path;
+        if( nbpath.search('/') >=0 ) {
+            var nbdir = nbpath.replace(/\\/[^\\/]*$/, '/');
+        } else {
+            var nbdir = ''
+        }
+        console.log("notebook directory is "+nbdir);
+        document.radiopadre_notebook_dir = nbdir;
         """ % dict(user=os.environ['USER'])))
 
 def protect (author=None):
@@ -168,8 +176,8 @@ class FileList(list):
         return FileBase.sort_list(self, opt)
 
     def _repr_html_(self, ncol=None, **kw):
-        html = render_title(self._title) + \
-                    render_refresh_button(full=self._parent and self._parent.is_updated());
+        html = render_preamble() + render_title(self._title) + \
+                render_refresh_button(full=self._parent and self._parent.is_updated());
         if not self:
             return html + ": 0 files"
         # auto-set 1 or 2 columns based on filename length
@@ -439,7 +447,7 @@ class DirList(list):
     def _repr_html_(self, copy_filename=None, copy_dirs='dirs', copy_root='root', **kw):
         """Render DirList in HTML. If copy is not None, adds buttons to make copies
         of the notebook under subdir/COPY.ipynb"""
-        html = render_title(self._title) + \
+        html = render_preamble() + render_title(self._title) + \
                render_refresh_button(full=self.is_updated())
         if not self:
             return html + ": no subdirectories"
@@ -491,15 +499,15 @@ class DirList(list):
                 if os.path.exists(copypath):
                     button = """<A href=%s target='_blank'
                                 title="%s contains its own copy of this notebook, click to open."
-                                >contains copy of notebook</a>""" % (
-                                    render_url(copypath,"/notebooks"),
+                                >open custom copy of notebook</a>""" % (
+                                    render_url(copypath,"notebooks"),
                                     dir_.name)
                 # else show "make copy" button
                 else:
 #                    button = """<button onclick="console.log('%s');" 
                     button = """<a href='#' onclick="copy_notebook('%s','%s','%s'); return false;" 
                                 title="Click to make a new copy of this radiopadre notebook in %s."
-                                >copy notebook</a>""" % (copypath, copy_dirs, copy_root, dir_.name)
+                                >create custom copy of notebook</a>""" % (copypath, copy_dirs, copy_root, dir_.name)
                 table_entry.append(button)
             dirlist.append(table_entry)
         labels = [ "name", "# FITS", "# img", "# others", "modified" ]
@@ -539,7 +547,7 @@ import IPython.nbformat
 import json
 
 from radiopadre.notebook_utils import scrub_cell
-from IPython.nbformat.notebooknode import NotebookNode
+import IPython.nbformat
 
 def copy_current_notebook(oldpath,newpath,cell=0,copy_dirs='dirs',copy_root='root'):
     # read notebook data
@@ -547,36 +555,41 @@ def copy_current_notebook(oldpath,newpath,cell=0,copy_dirs='dirs',copy_root='roo
     version = json.loads(data)['nbformat']
     nbdata = IPython.nbformat.reads(data,version)
     nbdata.keys()    
+    # convert to current format
+    current_version = IPython.nbformat.current_nbformat
+    nbdata = IPython.nbformat.convert(nbdata, current_version)
+    current_format = getattr(IPython.nbformat,'v'+str(current_version))
     # accommodate worksheets, if available 
     if hasattr(nbdata, 'worksheets'):
         raise RuntimeError,"copy_current_notebook: not compatible with worksheets"
     metadata = nbdata['metadata']
     cells = nbdata['cells']
-    # strip out code cells up to indicated one
-    i = 0
-    while i < cell:
-        if cells[i]['cell_type'] == 'code':
-            del cells[i];
-            cell -= 1
-        else:
-            i += 1
-    # replace indicated one
-    cells[cell]['cell_type'] = 'code';
-    cells[cell]['source'] = "import radiopadre\n" + \
-        "%s = radiopadre.DirList('.')" % copy_dirs 
-    if copy_root:
-        cells[cell]['source'] += "\n%s = %s[0]" % (copy_root, copy_dirs)
-    # prepend markdown
-    cells.insert(cell, NotebookNode(
-        cell_type='markdown', metadata={}, source="""## %s\nThis
-                radiopadre notebook was automatically generated from ``%s`` 
-                using the 'copy notebook' feature.""" % (newpath,oldpath)
-    ))
+    # strip out all cells up to and including indicated one
+    del cells[:cell+1]
     # scrub cell output
     for c in cells:
         scrub_cell(c)
+    # insert boilerplate code
+    code = "import radiopadre\n" + \
+           "%s = radiopadre.DirList('.')" % copy_dirs
+    if copy_root:
+        code += "\n%s = %s[0]" % (copy_root, copy_dirs)
+    code += "\n%s.show()" % copy_dirs
+    # insert output
+    output = current_format.new_output("display_data",data={
+      "text/html": [ "<b style='color: red'>Please select Cell|Run all from the menu to render this notebook.</b>" ]
+      })
+    cells.insert(0,current_format.new_code_cell(code,outputs=[output]))
+    # insert markdown
+    cells.insert(0, current_format.new_markdown_cell("""# %s\nThis
+                radiopadre notebook was automatically generated from ``%s`` 
+                using the 'copy notebook' feature. Please select "Cell|Run all"
+                from the menu to render this notebook.
+                """ % (newpath,oldpath),
+    ))
     # cleanup metadata
     metadata['radiopadre_notebook_protect'] = 0
+    metadata['radiopadre_notebook_scrub'] = 0
     if 'signature' in metadata:
         metadata['signature'] = ""
     # save

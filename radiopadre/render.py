@@ -12,11 +12,28 @@ display(Javascript("""
     kernel.execute("import radiopadre.render,os.path; radiopadre.render._notebook_dir=os.path.dirname(" + "\'"+IPython.notebook.notebook_path+"\')");
 """))
 
-def render_url (fullpath,prefix="/files"):
+def render_preamble ():
+    """Renders HTML preamble.
+    Include this in the HTML of each cell to make sure that #NOTEBOOK_FILES# in links is correctly substituted
+    """
+    return """<script>
+        $("a[href*='/#NOTEBOOK_FILES#/']").each(function() {
+                this.href = this.href.replace("/#NOTEBOOK_FILES#/","/files/"+document.radiopadre_notebook_dir);
+           });
+        $("a[href*='/#NOTEBOOK_NOTEBOOKS#/']").each(function() {
+                this.href = this.href.replace("/#NOTEBOOK_NOTEBOOKS#/","/notebooks/"+document.radiopadre_notebook_dir);
+           });
+        $("img[src*='/#NOTEBOOK_FILES#/']").each(function() { 
+                this.src = this.src.replace("/#NOTEBOOK_FILES#/","/files/"+document.radiopadre_notebook_dir);
+           });
+        </script>"""
+
+
+def render_url (fullpath,prefix="files"):
     """Converts a path relative to the notebook (i.e. kernel) to a URL that 
     can be served by the notebook server, by prepending the notebook
     directory""";
-    return os.path.join(prefix,_notebook_dir,fullpath);
+    return ("/#NOTEBOOK_%s#/" % prefix.upper()) + fullpath;
 
 def render_title(title):
     return "<b>%s</b>" % cgi.escape(title)
