@@ -38,86 +38,113 @@ TIMEFORMAT = "%H:%M:%S %b %d"
 
 ## various notebook-related init
 astropy.log.setLevel('ERROR')
-try:
-    get_ipython
-except:
-    get_ipython = None
 
-# notebook metadata set via Javascript hack
-metadata = {}
 
-if get_ipython:
+def _init_js_side ():
+    """Checks that Javascript components of radiopadre are initialized"""
+    try:
+        get_ipython
+    except:
+        return None
     get_ipython().magic("matplotlib inline")
     display(Javascript("""
-        var kernel = IPython.notebook.kernel;
-        kernel.execute("import radiopadre; radiopadre.metadata = " + JSON.stringify(IPython.notebook.metadata));
-        """))
-
-
-def scrub(scrub=True):
-    scrub = int(scrub)
-    metadata['radiopadre_notebook_scrub'] = scrub
-    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_scrub = %d;""" % scrub, raw=True)
-    if scrub:
-        display(HTML(render_status_message("All cell output will be scrubbed when this notebook is saved.")))
-    else:
-        display(HTML(render_status_message("Retaining cell output when saving the notebook.")))
+        function update_radiopadre_controls () {
+            var prot = document.getElementById("btn_protected");
+            var scrub = document.getElementById("btn_scrub");
+            scrub.disabled = false;
+            var save = IPython.menubar.element.find("#save_checkpoint");
+            save.enable = true;
+            if( IPython.notebook.metadata.radiopadre_notebook_protect ) {
+                IPython.notebook.set_autosave_interval(0);
+                prot.visibility = 'visibility'
+                var author = IPython.notebook.metadata.radiopadre_notebook_author; 
+                if( author == '%(user)s' ) {
+                    prot.innerHTML = 'author';
+                    prot.title  = 'This is a protected radiopadre notebook, but you are the author. ';
+                    prot.title += 'You may modify and save the notebook, but auto-save is disabled. ';
+                    prot.title += 'Use radiopadre.unprotect() to unprotect this notebook.';
+                } else {
+                    prot.innerHTML = 'protected';
+                    prot.title = 'This radiopadre notebook is protected by author "' + author + '".';
+                    prot.title += 'You may modify, but you cannot save the notebook. ';
+                    prot.title += 'Use radiopadre.unprotect() to unprotect this notebook.';
+                    scrub.disabled = true;
+                    IPython.notebook.metadata.radiopadre_notebook_scrub = true;
+                    save.enable = false;
+                }
+            } else {
+                prot.innerHTML = 'unprotected';
+                prot.visibility = 'hidden';
+                prot.title = 'This is an unprotected radiopadre notebook, it may be modified and saved at will. '; 
+                prot.title += 'Use radiopadre.protect([author]) to protect this notebook.';
+            }
+            if( IPython.notebook.metadata.radiopadre_notebook_scrub ) {
+                scrub.innerHTML = 'scrub: on';
+                scrub.title = 'Will scrub all cell output when saving this notebook. Click to toggle.';
+            } else {
+                scrub.innerHTML = 'scrub: off';
+                scrub.title = 'Will retain cell output when saving this notebook. Click to toggle.';
+            }
+        }
+        function toggle_scrubbing () {
+            IPython.notebook.metadata.radiopadre_notebook_scrub = !IPython.notebook.metadata.radiopadre_notebook_scrub;
+            document.getElementById("radiopadre_controls").update();
+        }
+        // init bits of toolbar for padre
+        if( document.getElementById("btn_exec_all") == null ) {
+            console.log("initializing radiopadre components");
+            var label = $('<span/>').addClass("navbar-text").text('Radiopadre:');
+            IPython.toolbar.element.append(label);
+            IPython.toolbar.add_buttons_group([
+                {   'id'      : 'btn_exec_all',
+                    'label'   : 'Click to rerun all cells in this radiopadre notebook.',
+                    'icon'    : 'icon-arrow-up', 
+                    'callback': function() { IPython.notebook.execute_all_cells() }
+                },
+                {   'id'      : 'btn_scrub',
+                    'label'   : 'Scrubs output from all cells in the notebook',
+                    'icon'    : 'icon-stop', 
+                    'callback': toggle_scrubbing
+                },
+                {   'id'      : 'btn_protected',
+                    'label'   : 'This notebook is protected',
+                    'icon'    : 'icon-play-circle', 
+                    'callback': function() { IPython.notebook.execute_cell() }
+                }
+                ],'radiopadre_controls');   
+            var save = IPython.menubar.element.find("#save_checkpoint");
+            save.enable = true;
+        }
+        document.getElementById("radiopadre_controls").update = update_radiopadre_controls;
+        document.getElementById("btn_exec_all").innerHTML = "Run all";
+        update_radiopadre_controls();
+        """ % dict(user=os.environ['USER'])))
 
 def protect (author=None):
     """Makes current notebook protected with the given author name. Protected notebooks won't be saved
     unless the user matches the author."""
-    metadata['radiopadre_notebook_author'] = author = author or os.environ['USER']    
-    metadata['radiopadre_notebook_protect'] = 1
-    # get_ipython and get_ipython().magic("autosave 0")
-    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 1;
-                IPython.notebook.metadata.radiopadre_notebook_scrub = 1;
-                IPython.notebook.metadata.radiopadre_notebook_author = "%s";""" % author, 
-                raw=True)
+    author = author or os.environ['USER']
+    display(Javascript("""
+        IPython.notebook.metadata.radiopadre_notebook_protect = 1;
+        IPython.notebook.metadata.radiopadre_notebook_scrub = 1;
+        IPython.notebook.metadata.radiopadre_notebook_author = '%(author)s';
+        var controls = document.getElementById("radiopadre_controls");
+        if( controls != null )
+            controls.update();
+        """ % dict(author=author) ));
     display(HTML(render_status_message("""This notebook is now protected, author is "%s".
         All other users will have to treat this notebook as read-only.""" % author)))
-    #     display(HTML("""<b>This is a protected notebook (author '%s', and it ain't you!). 
-    #         You can edit and re-run cells, but you cannot save any changes. If you do want
-    #         to make changes, save this notebook to a different file, and remove the
-    #         <tt>radiopadre.protected()</tt> statement above.</b>""" % author))
-    # # else:
-    #     display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 1;
-    #             IPython.notebook.metadata.radiopadre_notebook_author = 1;
-    #             IPython.notebook.metadata.radiopadre_notebook_scrub = 1;""", 
-    #             raw=True)
-    #     display(HTML("""<b>Welcome to your protected notebook, '%s'. Please edit wisely.</b>""" % author))
 
 def unprotect ():
     """Makes current notebook unprotected."""
-    # get_ipython and get_ipython().magic("autosave 0")
-    metadata['radiopadre_notebook_protect'] = 0
-    display_javascript("""IPython.notebook.metadata.radiopadre_notebook_protect = 0;""",raw=True)
+    display(Javascript("""
+        IPython.notebook.metadata.radiopadre_notebook_protect = 0;
+        var controls = document.getElementById("radiopadre_controls");
+        if( controls != null )
+            controls.update();
+        """));
     display(HTML(render_status_message("""This notebook is now unprotected.
         All users can treat it as read-write.""")))
-
-def status ():
-    """Renders status message based on metadata"""
-    txt = """<div style="position: absolute; right: 100px; top: 0;">\n"""
-    author = metadata.get('radiopadre_notebook_author'); 
-    if metadata.get('radiopadre_notebook_protect'):
-        display(Javascript("IPython.notebook.set_autosave_interval(0);"))
-        txt += "<button onclick='IPython.notebook.copy_notebook();' title=\""
-        if author == os.environ["USER"]:
-            txt += "This is a protected notebook, but you are the author. " 
-            txt += "You may modify and save the notebook, but auto-save is disabled. Click button to save a copy of the notebook. " 
-            txt += "Use radiopadre.unprotect() to unprotect this notebook.\"><b>A</b></button>"
-        else:
-            txt += "This notebook is protected by author '%s'. " % author
-            txt += "You may modify, but you cannot save the notebook. Click button to save a copy of the botebook instead. " 
-            txt += "Use radiopadre.unprotect() to unprotect this notebook.\"><b>P</b></button>"
-    if metadata.get('radiopadre_notebook_scrub'):
-        txt += "<button onclick='IPython.notebook.clear_all_output();' title=\""
-        txt += "This notebook is marked as 'scrubbed', so cell output will not be saved. "
-        txt += "Click button to scrub all output now. " 
-        txt += "Use radiopadre.scrub(False) to disable scrubbing.\"><b>S</b></button>"
-    txt += "<button onclick='IPython.notebook.execute_all_cells();' title='Click to rerun entire notebook.'>"
-    txt += "<b style='color: green;'>&#8635</b></button>"
-    txt += "</div>"
-    display(HTML(txt))
 
 class FileList(list):
     @staticmethod
@@ -228,8 +255,10 @@ class DataDir(FileBase):
     This class represents a directory in the data folder
     """
 
-    def __init__(self, name, files=None, root=".", original_root=None):
+    def __init__(self, name, files=None, root=".", original_root=None, _skip_js_init=False):
         FileBase.__init__(self, name, root=root)
+        if not _skip_js_init:
+            _init_js_side()
         # list of files
         if files is None:
             files = os.listdir(self.fullpath)
@@ -350,6 +379,7 @@ class DirList(list):
             sort:   sort order, default is 'xnt'
             _scan: (for internal use only) if False, directory is not re-scanned
         """
+        _init_js_side()
         self._root = rootfolder = rootfolder or os.environ.get('PADRE_DATA_DIR') or '.'
         self._original_root = original_rootfolder or os.environ.get('PADRE_HOST_DATA_DIR') or rootfolder
         self._title = title or self._original_root
@@ -378,7 +408,7 @@ class DirList(list):
                              [fnmatch.fnmatch(f, patt) for patt in exclude_files])]
                 if files or not exclude_empty:
                     self.append(DataDir(dir_, files, root=rootfolder,
-                                        original_root=original_rootfolder))
+                                        original_root=original_rootfolder, _skip_js_init=True))
         # init lists
         self.sort(sort)
 
@@ -406,31 +436,88 @@ class DirList(list):
     def is_updated (self):
         return any([d.is_updated() for d in self])
 
-    def _repr_html_(self):
+    def _repr_html_(self, copy_filename=None, copy_dirs='dirs', copy_root='root', **kw):
+        """Render DirList in HTML. If copy is not None, adds buttons to make copies
+        of the notebook under subdir/COPY.ipynb"""
         html = render_title(self._title) + \
                render_refresh_button(full=self.is_updated())
         if not self:
             return html + ": no subdirectories"
         dirlist = []
+        if copy_filename:
+            html += """<script type="text/Javascript">
+                function handle_copy_notebook_output (out) {
+                    console.log('copy_current_notebook output ' + JSON.stringify(out));
+                    if( out.header.msg_type == 'error' ) {
+                        var ename = out.content.ename;
+                        var evalue = out.content.evalue;
+                        console.log('error: '+ename+', '+evalue)
+                        IPython.dialog.modal({
+                            title: "Error copying notebook",
+                            body: "There was an error copying the notebook: "+ename+", "+evalue,
+                            buttons: { OK : { class : "btn-primary" } }
+                        });
+                    } else if( out.header.msg_type == 'execute_result' ) {
+                        var path = out.content.data['text/plain']
+                        path = path.replace(/^['"](.*)['"]$/, '$1')
+                        console.log('success: '+path);
+                        IPython.notebook.execute_cell();
+                        window.open('/notebooks/'+path,'_blank')
+                    }
+                }
+                function copy_notebook(path,copy_dirs,copy_root){
+                    var kernel = IPython.notebook.kernel;
+                    var callbacks = {'iopub': {'output' : handle_copy_notebook_output}};
+                    var index = IPython.notebook.get_selected_index();
+                    var command = 'radiopadre.copy_current_notebook('
+                        +'"'+IPython.notebook.notebook_path+'","'+path+'",'
+                        +'cell='+index.toString()+','
+                        +'copy_dirs="'+copy_dirs+'",'
+                        +'copy_root="'+copy_root+'"'
+                        +');' 
+                    console.log('running '+command)
+                    kernel.execute(command, callbacks, {silent:false});
+                }
+                </script>""";
         for dir_ in self:
             nfits = len(dir_.fits)
             nimg = len(dir_.images)
             nother = len(dir_.files) - nfits - nimg
-            dirlist.append(
-                (dir_.path or '.', nfits, nimg, nother,
-                 time.strftime(TIMEFORMAT, time.localtime(dir_.mtime))))
-        html += render_table(dirlist, labels=("name", "# FITS", "# img",
-                                              "# others", "modified"))
+            table_entry = [ dir_.path or '.', nfits, nimg, nother,
+                            time.strftime(TIMEFORMAT, time.localtime(dir_.mtime)) ]
+            if copy_filename:
+                # if copy of this notebook exists in subdirectory, show "load copy" button
+                copypath = os.path.join(dir_.fullpath,copy_filename+".ipynb")
+                if os.path.exists(copypath):
+                    button = """<A href=%s target='_blank'
+                                title="%s contains its own copy of this notebook, click to open."
+                                >contains copy of notebook</a>""" % (
+                                    render_url(copypath,"/notebooks"),
+                                    dir_.name)
+                # else show "make copy" button
+                else:
+#                    button = """<button onclick="console.log('%s');" 
+                    button = """<a href='#' onclick="copy_notebook('%s','%s','%s'); return false;" 
+                                title="Click to make a new copy of this radiopadre notebook in %s."
+                                >copy notebook</a>""" % (copypath, copy_dirs, copy_root, dir_.name)
+                table_entry.append(button)
+            dirlist.append(table_entry)
+        labels = [ "name", "# FITS", "# img", "# others", "modified" ]
+        copy_filename and labels.append("copy")
+        html += render_table(dirlist, labels=labels, html=["copy"])
         return html
 
     def __str__ (self):
         return FileList.list_to_string(self)
 
-    def show(self):
-        return IPython.display.display(self)
+    def show(self, **kw):
+        return display(HTML(self._repr_html_(**kw)))
 
-    def list(self):
-        return IPython.display.display(self)
+    def list(self, **kw):
+        return display(HTML(self._repr_html_(**kw)))
+
+    def subdirectory_catalog (self, basename="results", dirs="dirs", root="root", **kw):
+        return display(HTML(self._repr_html_(copy_filename=basename,copy_dirs=dirs,copy_root=root,**kw)))
 
     def __call__(self, pattern):
         newlist = DirList(self._root, _scan=False, title="%s/%s" % (self._title,
@@ -447,3 +534,51 @@ class DirList(list):
         newlist += list.__getslice__(self, *slc)
         newlist.sort(self._sort_option)
         return newlist
+
+import IPython.nbformat
+import json
+
+from radiopadre.notebook_utils import scrub_cell
+from IPython.nbformat.notebooknode import NotebookNode
+
+def copy_current_notebook(oldpath,newpath,cell=0,copy_dirs='dirs',copy_root='root'):
+    # read notebook data
+    data = open(oldpath).read()
+    version = json.loads(data)['nbformat']
+    nbdata = IPython.nbformat.reads(data,version)
+    nbdata.keys()    
+    # accommodate worksheets, if available 
+    if hasattr(nbdata, 'worksheets'):
+        raise RuntimeError,"copy_current_notebook: not compatible with worksheets"
+    metadata = nbdata['metadata']
+    cells = nbdata['cells']
+    # strip out code cells up to indicated one
+    i = 0
+    while i < cell:
+        if cells[i]['cell_type'] == 'code':
+            del cells[i];
+            cell -= 1
+        else:
+            i += 1
+    # replace indicated one
+    cells[cell]['cell_type'] = 'code';
+    cells[cell]['source'] = "import radiopadre\n" + \
+        "%s = radiopadre.DirList('.')" % copy_dirs 
+    if copy_root:
+        cells[cell]['source'] += "\n%s = %s[0]" % (copy_root, copy_dirs)
+    # prepend markdown
+    cells.insert(cell, NotebookNode(
+        cell_type='markdown', metadata={}, source="""## %s\nThis
+                radiopadre notebook was automatically generated from ``%s`` 
+                using the 'copy notebook' feature.""" % (newpath,oldpath)
+    ))
+    # scrub cell output
+    for c in cells:
+        scrub_cell(c)
+    # cleanup metadata
+    metadata['radiopadre_notebook_protect'] = 0
+    if 'signature' in metadata:
+        metadata['signature'] = ""
+    # save
+    IPython.nbformat.write(nbdata, open(newpath,'w'), version)
+    return newpath

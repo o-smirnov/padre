@@ -20,7 +20,7 @@ class TextFile(radiopadre.file.FileBase):
         return "%s modified %s:\n%s" % (self.path, self.update_mtime(), self.tail(-10))
 
     def html(self,tail=None,head=None,fs=.8):
-        txt = "<A HREF=%s>" % render_url(self.fullpath) + \
+        txt = "<A HREF=%s target='_blank'>" % render_url(self.fullpath) + \
                 render_title(self.path) + "</A> modified %s:" % self.update_mtime();
         txt += """\n<PRE style="font-size: %d%%; line-height: 110%%">"""%(fs*100) + \
                 (cgi.escape(self.head(head)) if head else "") + \
