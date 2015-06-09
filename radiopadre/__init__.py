@@ -15,7 +15,7 @@ from radiopadre.render import *
 import radiopadre.notebook_utils
 from radiopadre.notebook_utils import _notebook_save_hook
 
-__version__ = '0.2.2'
+__version__ = '0.3'
 
 # when running inside a docker containers, these are used to tell radiopadre
 # where the results directory is mounted, and what its original path on
@@ -39,7 +39,6 @@ TIMEFORMAT = "%H:%M:%S %b %d"
 ## various notebook-related init
 astropy.log.setLevel('ERROR')
 
-
 def _init_js_side ():
     """Checks that Javascript components of radiopadre are initialized"""
     try:
@@ -47,110 +46,22 @@ def _init_js_side ():
     except:
         return None
     get_ipython().magic("matplotlib inline")
-    display(Javascript("""
-        function update_radiopadre_controls () {
-            var prot = document.getElementById("btn_protected");
-            var scrub = document.getElementById("btn_scrub");
-            scrub.disabled = false;
-            var save = IPython.menubar.element.find("#save_checkpoint");
-            save.enable = true;
-            if( IPython.notebook.metadata.radiopadre_notebook_protect ) {
-                IPython.notebook.set_autosave_interval(0);
-                prot.visibility = 'visibility'
-                var author = IPython.notebook.metadata.radiopadre_notebook_author; 
-                if( author == '%(user)s' ) {
-                    prot.innerHTML = 'author';
-                    prot.title  = 'This is a protected radiopadre notebook, but you are the author. ';
-                    prot.title += 'You may modify and save the notebook, but auto-save is disabled. ';
-                    prot.title += 'Use radiopadre.unprotect() to unprotect this notebook.';
-                } else {
-                    prot.innerHTML = 'protected';
-                    prot.title = 'This radiopadre notebook is protected by author "' + author + '".';
-                    prot.title += 'You may modify, but you cannot save the notebook. ';
-                    prot.title += 'Use radiopadre.unprotect() to unprotect this notebook.';
-                    scrub.disabled = true;
-                    IPython.notebook.metadata.radiopadre_notebook_scrub = true;
-                    save.enable = false;
-                }
-            } else {
-                prot.innerHTML = 'unprotected';
-                prot.visibility = 'hidden';
-                prot.title = 'This is an unprotected radiopadre notebook, it may be modified and saved at will. '; 
-                prot.title += 'Use radiopadre.protect([author]) to protect this notebook.';
-            }
-            if( IPython.notebook.metadata.radiopadre_notebook_scrub ) {
-                scrub.innerHTML = 'scrub: on';
-                scrub.title = 'Will scrub all cell output when saving this notebook. Click to toggle.';
-            } else {
-                scrub.innerHTML = 'scrub: off';
-                scrub.title = 'Will retain cell output when saving this notebook. Click to toggle.';
-            }
-        }
-        function toggle_scrubbing () {
-            IPython.notebook.metadata.radiopadre_notebook_scrub = !IPython.notebook.metadata.radiopadre_notebook_scrub;
-            document.getElementById("radiopadre_controls").update();
-        }
-        // init bits of toolbar for padre
-        if( document.getElementById("btn_exec_all") == null ) {
-            console.log("initializing radiopadre components");
-            var label = $('<span/>').addClass("navbar-text").text('Radiopadre:');
-            IPython.toolbar.element.append(label);
-            IPython.toolbar.add_buttons_group([
-                {   'id'      : 'btn_exec_all',
-                    'label'   : 'Click to rerun all cells in this radiopadre notebook.',
-                    'icon'    : 'icon-arrow-up', 
-                    'callback': function() { IPython.notebook.execute_all_cells() }
-                },
-                {   'id'      : 'btn_scrub',
-                    'label'   : 'Scrubs output from all cells in the notebook',
-                    'icon'    : 'icon-stop', 
-                    'callback': toggle_scrubbing
-                },
-                {   'id'      : 'btn_protected',
-                    'label'   : 'This notebook is protected',
-                    'icon'    : 'icon-play-circle', 
-                    'callback': function() { IPython.notebook.execute_cell() }
-                }
-                ],'radiopadre_controls');   
-            var save = IPython.menubar.element.find("#save_checkpoint");
-            save.enable = true;
-        }
-        document.getElementById("radiopadre_controls").update = update_radiopadre_controls;
-        document.getElementById("btn_exec_all").innerHTML = "Run all";
-        update_radiopadre_controls();
-        var nbpath = IPython.notebook.notebook_path;
-        if( nbpath.search('/') >=0 ) {
-            var nbdir = nbpath.replace(/\\/[^\\/]*$/, '/');
-        } else {
-            var nbdir = ''
-        }
-        console.log("notebook directory is "+nbdir);
-        document.radiopadre_notebook_dir = nbdir;
-        """ % dict(user=os.environ['USER'])))
+    # load radiopadre/js/init.js and init controls
+    initjs = os.path.join(os.path.dirname(__file__),"js","init.js")
+    display(Javascript(open(initjs).read()))
+    display(Javascript("document.radiopadre.init_controls('%s')"%os.environ['USER']))
 
 def protect (author=None):
     """Makes current notebook protected with the given author name. Protected notebooks won't be saved
     unless the user matches the author."""
     author = author or os.environ['USER']
-    display(Javascript("""
-        IPython.notebook.metadata.radiopadre_notebook_protect = 1;
-        IPython.notebook.metadata.radiopadre_notebook_scrub = 1;
-        IPython.notebook.metadata.radiopadre_notebook_author = '%(author)s';
-        var controls = document.getElementById("radiopadre_controls");
-        if( controls != null )
-            controls.update();
-        """ % dict(author=author) ));
+    display(Javascript("document.radiopadre.protect('%s')"%author))
     display(HTML(render_status_message("""This notebook is now protected, author is "%s".
         All other users will have to treat this notebook as read-only.""" % author)))
 
 def unprotect ():
     """Makes current notebook unprotected."""
-    display(Javascript("""
-        IPython.notebook.metadata.radiopadre_notebook_protect = 0;
-        var controls = document.getElementById("radiopadre_controls");
-        if( controls != null )
-            controls.update();
-        """));
+    display(Javascript("document.radiopadre.unprotect()"))
     display(HTML(render_status_message("""This notebook is now unprotected.
         All users can treat it as read-write.""")))
 
@@ -452,41 +363,6 @@ class DirList(list):
         if not self:
             return html + ": no subdirectories"
         dirlist = []
-        if copy_filename:
-            html += """<script type="text/Javascript">
-                function handle_copy_notebook_output (out) {
-                    console.log('copy_current_notebook output ' + JSON.stringify(out));
-                    if( out.header.msg_type == 'error' ) {
-                        var ename = out.content.ename;
-                        var evalue = out.content.evalue;
-                        console.log('error: '+ename+', '+evalue)
-                        IPython.dialog.modal({
-                            title: "Error copying notebook",
-                            body: "There was an error copying the notebook: "+ename+", "+evalue,
-                            buttons: { OK : { class : "btn-primary" } }
-                        });
-                    } else if( out.header.msg_type == 'execute_result' ) {
-                        var path = out.content.data['text/plain']
-                        path = path.replace(/^['"](.*)['"]$/, '$1')
-                        console.log('success: '+path);
-                        IPython.notebook.execute_cell();
-                        window.open('/notebooks/'+path,'_blank')
-                    }
-                }
-                function copy_notebook(path,copy_dirs,copy_root){
-                    var kernel = IPython.notebook.kernel;
-                    var callbacks = {'iopub': {'output' : handle_copy_notebook_output}};
-                    var index = IPython.notebook.get_selected_index();
-                    var command = 'radiopadre.copy_current_notebook('
-                        +'"'+IPython.notebook.notebook_path+'","'+path+'",'
-                        +'cell='+index.toString()+','
-                        +'copy_dirs="'+copy_dirs+'",'
-                        +'copy_root="'+copy_root+'"'
-                        +');' 
-                    console.log('running '+command)
-                    kernel.execute(command, callbacks, {silent:false});
-                }
-                </script>""";
         for dir_ in self:
             nfits = len(dir_.fits)
             nimg = len(dir_.images)
@@ -505,7 +381,7 @@ class DirList(list):
                 # else show "make copy" button
                 else:
 #                    button = """<button onclick="console.log('%s');" 
-                    button = """<a href='#' onclick="copy_notebook('%s','%s','%s'); return false;" 
+                    button = """<a href='#' onclick="document.radiopadre.copy_notebook('%s','%s','%s'); return false;" 
                                 title="Click to make a new copy of this radiopadre notebook in %s."
                                 >create custom copy of notebook</a>""" % (copypath, copy_dirs, copy_root, dir_.name)
                 table_entry.append(button)
@@ -545,9 +421,7 @@ class DirList(list):
 
 import IPython.nbformat
 import json
-
 from radiopadre.notebook_utils import scrub_cell
-import IPython.nbformat
 
 def copy_current_notebook(oldpath,newpath,cell=0,copy_dirs='dirs',copy_root='root'):
     # read notebook data

@@ -5,28 +5,12 @@ import os.path
 import IPython.display 
 from IPython.display import display, HTML, Javascript
 
-# crude hack to set _notebook_dir to the notebook directory
-_notebook_dir = ''
-display(Javascript("""
-    var kernel = IPython.notebook.kernel;
-    kernel.execute("import radiopadre.render,os.path; radiopadre.render._notebook_dir=os.path.dirname(" + "\'"+IPython.notebook.notebook_path+"\')");
-"""))
 
 def render_preamble ():
     """Renders HTML preamble.
     Include this in the HTML of each cell to make sure that #NOTEBOOK_FILES# in links is correctly substituted
     """
-    return """<script>
-        $("a[href*='/#NOTEBOOK_FILES#/']").each(function() {
-                this.href = this.href.replace("/#NOTEBOOK_FILES#/","/files/"+document.radiopadre_notebook_dir);
-           });
-        $("a[href*='/#NOTEBOOK_NOTEBOOKS#/']").each(function() {
-                this.href = this.href.replace("/#NOTEBOOK_NOTEBOOKS#/","/notebooks/"+document.radiopadre_notebook_dir);
-           });
-        $("img[src*='/#NOTEBOOK_FILES#/']").each(function() { 
-                this.src = this.src.replace("/#NOTEBOOK_FILES#/","/files/"+document.radiopadre_notebook_dir);
-           });
-        </script>"""
+    return """<script>document.radiopadre.fixup_hrefs()</script>"""
 
 
 def render_url (fullpath,prefix="files"):
@@ -82,40 +66,20 @@ def render_refresh_button (full=False):
     If full is True, a double-click will re-execute the entire notebook, and the button
     will visually indicate that this is necessary
     """
-    # bid = button_id and "'%s'"%button_id
-    # attrs = ( "id=%s onload='init(%s);' " % (bid, bid) )  if bid else ""
-    txt = """<script type="text/Javascript">
-            function refresh()  {  
-                IPython.notebook.execute_cell(); 
-            }
-            function refresh_all()  { 
-                var current =  IPython.notebook.get_selected_index();
-                IPython.notebook.execute_cell_range(0,current+1);
-            }
-          </script>
-          <button %s onclick="refresh();"
+    txt = """<button %s onclick="IPython.notebook.execute_cell()"
             style="position: absolute; right: 0; top: 0;
-    """
+    """;
     if full:
         title = "The underlying directories have changed so it is probably wise to " +\
             "rerun the notebook. Double-click to rerun the notebook up to and including " +\
             "this cell, or click to rerun this cell only"
         txt += """color:red;"
-            title="%s" ondblclick="refresh_all();"
+            title="%s" ondblclick="document.radiopadre.execute_to_current_cell();"
             >&#8635;</button>
         """ % title
     else:
-        txt += """"
+        txt += """;"
             title="Click to rerun this cell and refresh its contents."
             >&#8635;</button>
         """
-    # if bid:
-    #     txt += """
-    #         function init() {
-    #           document.getElementById(%s).nbcell = IPython.notebook.get_selected_cell();
-    #         }
-    #         function refresh1() {
-    #           document.getElementById(%s).nbcell.execute();
-    #         }
-    #     """ % (bid,bid)
     return txt
