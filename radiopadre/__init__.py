@@ -400,7 +400,7 @@ class DirList(list):
         #
         if _scan:
             if not os.path.exists(rootfolder):
-                raise IOError("directory %s does not exist") % rootfolder
+                raise IOError("directory %s does not exist" % rootfolder)
             for dir_, dirnames, files in os.walk(rootfolder):
                 # exclude subdirectories
                 if not recursive and dir_ != rootfolder:

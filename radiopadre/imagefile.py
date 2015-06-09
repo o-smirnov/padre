@@ -26,7 +26,7 @@ def _make_thumbnail(image, width):
     return thumb
 
 
-class ImageFile(FileBase):
+class ImageFile(radiopadre.file.FileBase):
 
     @staticmethod
     def _show_thumbs(images, width=None, ncol=None, maxwidth=None, mincol=None,
@@ -35,8 +35,8 @@ class ImageFile(FileBase):
 
         if not images:
             return None
-        nrow, ncol, width = compute_thumb_geometry(len(images), ncol, mincol,
-                                                   maxcol, width, maxwidth)
+        nrow, ncol, width = radiopadre.file.compute_thumb_geometry(
+            len(images), ncol, mincol, maxcol, width, maxwidth)
         npix = int(radiopadre.DPI * width)
 
         # make list of basename, filename  tuples
