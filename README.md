@@ -1,3 +1,8 @@
+Repository moved
+================
+
+Development has moved to https://github.com/radio-astro/radiopadre. This repo is kept for reference only.
+
 
 Radio padre: Python Astronomy Data & Results Examiner
 =====================================================
